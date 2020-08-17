@@ -2,22 +2,25 @@ import os
 import random
 
 import torch
-from torch import optim
 from torch import nn
+from torch import optim, hub
 from torch.utils.data import DataLoader
 from torchvision.transforms import transforms
 
+from config import Config
 from datagen import CasiaDataset
 from models.resnet import resnet18
-from tools.train_utils import parse_args, train
+from tools.train_utils import parse_args, train, validate
+
+CONFIG = Config()
+hub.set_dir(CONFIG['TORCH_HOME'])
 
 
 def main():
-    device = torch.device("cuda:0" if torch.cuda.is_available() else "cpu")
     args = parse_args()
+    print(args)
 
-    # os.environ["CUDA_VISIBLE_DEVICES"] = str(args.gpu)
-    torch.cuda.set_device(device)
+    os.environ["CUDA_VISIBLE_DEVICES"] = str(args.gpu)
     random.seed(args.seed)
     torch.manual_seed(args.seed)
     torch.cuda.manual_seed_all(args.seed)
@@ -28,6 +31,7 @@ def main():
     optimizer = optim.Adam(model.parameters())
     criterion = nn.CrossEntropyLoss().cuda()
 
+    print("Initializing Data Loader")
     transform = transforms.Compose([
         transforms.ToPILImage(),
         transforms.Resize((224, 224)),
@@ -44,9 +48,23 @@ def main():
     val_data = CasiaDataset(data_root=args.data_dir, mode='validation', transform=transform)
     val_loader = DataLoader(dataset=val_data, batch_size=args.batch_size)
 
-    for epoch in range(args.start_epoch, args.epochs):
-        train(train_loader, model, criterion, optimizer, epoch, args)
+    print("Start Training")
+    best_acc1 = 0.
+    for epoch in range(1, args.epochs + 1):
+        train(train_loader, model, optimizer, criterion, epoch, args)
+        acc1 = validate(val_loader, model, criterion, args)
 
+        best_acc1 = max(acc1, best_acc1)
+
+        if epoch == args.epochs:
+            print('Save model')
+            torch.save({
+                'epoch': epoch,
+                'arch': args.arch,
+                'state_dict': model.state_dict(),
+                'best_acc1': best_acc1,
+                'optimizer': optimizer.state_dict(),
+            }, os.path.join('weights', '{}_{}.pt'.format(args.arch, args.prefix)))
 
 
 if __name__ == '__main__':
