@@ -68,4 +68,7 @@ def main():
 
 
 if __name__ == '__main__':
+    """
+    python train.py --data-dir /home/shaohua/data/Datasets/Face_Anti_Spoofing/mini-casia --arch resnet18 --epoch 10 --batch-size 16 
+    """
     main()

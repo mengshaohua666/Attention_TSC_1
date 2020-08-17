@@ -48,7 +48,10 @@ def train(train_loader, model, optimizer, criterion, epoch, args):
     model.train()
 
     end = time.time()
-    for batch_idx, (images, target) in enumerate(train_loader):
+    for batch_idx, sample in enumerate(train_loader):
+        images = sample['rgb']
+        target = sample['label']
+        images_msr = sample['msr']
         images, target = images.cuda(), target.cuda()
         # compute output
         output = model(images)
